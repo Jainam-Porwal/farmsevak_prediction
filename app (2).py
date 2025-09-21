@@ -224,6 +224,7 @@ if st.button("🔎 " + translate_text("Predict", TARGET_LANG)):
     chat_model = ChatHuggingFace(llm=llm)
     parser = StrOutputParser()
 
+    # First template (farmer details + predictions)
     prompt = PromptTemplate(
         input_variables=[
             "crop", "season", "state", "area", "annual_rain", "temperature", "humidity",
@@ -231,7 +232,7 @@ if st.button("🔎 " + translate_text("Predict", TARGET_LANG)):
             "total_yield", "fertilizer", "pesticide"
         ],
         template="""
-You are an agricultural expert. Based on the following farmer’s details and predictions, provide actionable recommendations to improve productivity and sustainability. 
+You are an agricultural expert. Based on the following farmer’s details and predictions, provide actionable recommendations.
 
 ### Farmer Details:
 - Crop: {crop}
@@ -250,21 +251,27 @@ You are an agricultural expert. Based on the following farmer’s details and pr
 ### Prediction Results:
 - Total Yield (Expected): {total_yield} tons
 - Fertilizer Requirement: {fertilizer} kg
-- Pesticide Requirement: {pesticide} liters"""
-  )
+- Pesticide Requirement: {pesticide} liters
+"""
+    )
 
-prompt2 =  PromptTemplate(
-templete = """### Task: give max 8 short point advise only
-1. Recommend whether the farmer should continue with this crop or consider alternatives.  
-2. Suggest optimized fertilizer and pesticide usage.  
-3. Provide irrigation and soil management practices suitable for the given conditions.  
-4. Mention any risk factors (climate, soil, disease) and how to mitigate them.  
-5. Give sustainable and cost-effective practices to maximize yield and profit.  
+    # Second template (formatting constraints)
+    prompt2 = PromptTemplate(
+        input_variables=["recommendation"],
+        template="""
+### Task: 
+Convert the following recommendation into **maximum 8 short bullet points**.
 
-Provide the response in a simple, farmer-friendly way (clear steps or bullet points).
-""")
+Recommendation:
+{recommendation}
 
-    chain = prompt | chat_model | parser|prompt2 | chat_model | parser
+Make sure the points are farmer-friendly, clear, and practical.
+"""
+    )
+
+    # Two-step pipeline
+    chain1 = prompt | chat_model | parser
+    chain2 = prompt2 | chat_model | parser
 
     # ---------------- LLM Recommendation ----------------
     st.markdown("---")
@@ -289,8 +296,9 @@ Provide the response in a simple, farmer-friendly way (clear steps or bullet poi
     }
 
     try:
-        recommendation = chain.invoke(prompt_inputs)
-        recommendation_translated = translate_text(recommendation, TARGET_LANG)
+        raw_recommendation = chain1.invoke(prompt_inputs)
+        final_recommendation = chain2.invoke({"recommendation": raw_recommendation})
+        recommendation_translated = translate_text(final_recommendation, TARGET_LANG)
         st.markdown(recommendation_translated)
     except Exception as e:
         st.error(translate_text("LLM recommendation failed.", TARGET_LANG))
