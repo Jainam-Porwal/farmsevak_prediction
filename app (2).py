@@ -220,7 +220,7 @@ if st.button("🔎 " + translate_text("Predict", TARGET_LANG)):
     st.success("✅ " + translate_text("Done — calculations shown above.", TARGET_LANG))
 
     # ---------------- LLM Setup ----------------
-    llm = HuggingFaceEndpoint(repo_id="openai-community/gpt2")
+    llm = HuggingFaceEndpoint(repo_id="openai/gpt-oss-20b")
     chat_model = ChatHuggingFace(llm=llm)
     parser = StrOutputParser()
 
