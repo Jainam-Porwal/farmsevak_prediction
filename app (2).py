@@ -250,9 +250,11 @@ You are an agricultural expert. Based on the following farmer’s details and pr
 ### Prediction Results:
 - Total Yield (Expected): {total_yield} tons
 - Fertilizer Requirement: {fertilizer} kg
-- Pesticide Requirement: {pesticide} liters
+- Pesticide Requirement: {pesticide} liters"""
+  )
 
-### Task:
+prompt2 =  PromptTemplate(
+templete = """### Task: give max 8 short point advise only
 1. Recommend whether the farmer should continue with this crop or consider alternatives.  
 2. Suggest optimized fertilizer and pesticide usage.  
 3. Provide irrigation and soil management practices suitable for the given conditions.  
@@ -260,10 +262,9 @@ You are an agricultural expert. Based on the following farmer’s details and pr
 5. Give sustainable and cost-effective practices to maximize yield and profit.  
 
 Provide the response in a simple, farmer-friendly way (clear steps or bullet points).
-"""
-    )
+"""")
 
-    chain = prompt | chat_model | parser
+    chain = prompt | chat_model | parser|prompt2 | chat_model | parser
 
     # ---------------- LLM Recommendation ----------------
     st.markdown("---")
