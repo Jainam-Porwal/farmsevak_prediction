@@ -61,6 +61,44 @@ lang_map = {
 selected_lang = st.sidebar.selectbox("Choose Language", list(lang_map.keys()))
 TARGET_LANG = lang_map[selected_lang]
 
+
+# -------------------------
+# Weather API integration
+# -------------------------
+WEATHER_API_KEY = "your_api_key_here"  # Replace with your OpenWeatherMap API key
+
+def get_weather(city_name):
+    try:
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={city_name}&appid={WEATHER_API_KEY}&units=metric"
+        response = requests.get(url)
+        data = response.json()
+        if response.status_code == 200:
+            return {
+                "temperature": data["main"]["temp"],
+                "humidity": data["main"]["humidity"],
+                "rainfall": data["rain"]["1h"] if "rain" in data else 0
+            }
+        else:
+            return None
+    except Exception:
+        return None
+
+# Sidebar Weather Fetch
+st.sidebar.markdown("### 🌦️ Weather Data")
+city_input = st.sidebar.text_input("Enter City Name")
+
+if st.sidebar.button("Fetch Weather"):
+    weather = get_weather(city_input)
+    if weather:
+        st.sidebar.success(f"🌡️ Temp: {weather['temperature']} °C, 💧 Humidity: {weather['humidity']} %, 🌧️ Rainfall: {weather['rainfall']} mm")
+        # Autofill values in the main inputs
+        temperature = weather["temperature"]
+        humidity = weather["humidity"]
+        annual_rain = weather["rainfall"]
+    else:
+        st.sidebar.error("⚠️ Could not fetch weather. Check city name or API key.")
+
+
 # -------------------------
 # Load model from Dropbox
 # -------------------------
@@ -220,7 +258,7 @@ if st.button("🔎 " + translate_text("Predict", TARGET_LANG)):
     st.success("✅ " + translate_text("Done — calculations shown above.", TARGET_LANG))
 
     # ---------------- LLM Setup ----------------
-    llm = HuggingFaceEndpoint(repo_id="openai/gpt-oss-20b")
+    llm = HuggingFaceEndpoint(repo_id="google/flan-t5-base")
     chat_model = ChatHuggingFace(llm=llm)
     parser = StrOutputParser()
 
