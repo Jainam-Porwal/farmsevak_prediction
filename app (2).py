@@ -262,7 +262,7 @@ templete = """### Task: give max 8 short point advise only
 5. Give sustainable and cost-effective practices to maximize yield and profit.  
 
 Provide the response in a simple, farmer-friendly way (clear steps or bullet points).
-"""")
+""")
 
     chain = prompt | chat_model | parser|prompt2 | chat_model | parser
 
