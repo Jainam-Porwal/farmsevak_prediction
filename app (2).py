@@ -220,11 +220,11 @@ if st.button("🔎 " + translate_text("Predict", TARGET_LANG)):
     st.success("✅ " + translate_text("Done — calculations shown above.", TARGET_LANG))
 
     # ---------------- LLM Setup ----------------
-    llm = HuggingFaceEndpoint(repo_id="openai/gpt-oss-20b")
+    llm = HuggingFaceEndpoint(repo_id="google/flan-t5-base")
     chat_model = ChatHuggingFace(llm=llm)
     parser = StrOutputParser()
 
-    # First template (farmer details + predictions)
+    
     prompt = PromptTemplate(
         input_variables=[
             "crop", "season", "state", "area", "annual_rain", "temperature", "humidity",
@@ -232,46 +232,19 @@ if st.button("🔎 " + translate_text("Predict", TARGET_LANG)):
             "total_yield", "fertilizer", "pesticide"
         ],
         template="""
-You are an agricultural expert. Based on the following farmer’s details and predictions, provide actionable recommendations.
+You are an agricultural expert. Based on the details below, give a farmer-friendly recommendation.
 
-### Farmer Details:
-- Crop: {crop}
-- Season: {season}
-- State: {state}
-- Area: {area} hectares
-- Annual Rainfall: {annual_rain} mm
-- Temperature: {temperature} °C
-- Humidity: {humidity} %
-- Soil Type: {soil_type}
-- Soil pH: {ph}
-- Nitrogen (N) %: {n_percent}
-- Phosphorus (P) %: {p_percent}
-- Potassium (K) %: {k_percent}
+Details:
+- Crop: {crop}, Season: {season}, State: {state}, Area: {area} ha
+- Rainfall: {annual_rain} mm, Temp: {temperature} °C, Humidity: {humidity} %
+- Soil: {soil_type}, pH: {ph}, N: {n_percent}, P: {p_percent}, K: {k_percent}
+- Predicted Yield: {total_yield} tons, Fertilizer: {fertilizer} kg, Pesticide: {pesticide} L
 
-### Prediction Results:
-- Total Yield (Expected): {total_yield} tons
-- Fertilizer Requirement: {fertilizer} kg
-- Pesticide Requirement: {pesticide} liters
+👉 Task: Give **max 8 short bullet points** with advice on crop choice, fertilizer, pesticide, irrigation, soil care, risks, and profit.
 """
     )
 
-    # Second template (formatting constraints)
-    prompt2 = PromptTemplate(
-        input_variables=["recommendation"],
-        template="""
-### Task: 
-Convert the following recommendation into **maximum 8 short bullet points**.
-
-Recommendation:
-{recommendation}
-
-Make sure the points are farmer-friendly, clear, and practical.
-"""
-    )
-
-    # Two-step pipeline
-    chain1 = prompt | chat_model | parser
-    chain2 = prompt2 | chat_model | parser
+    chain = prompt | chat_model | parser
 
     # ---------------- LLM Recommendation ----------------
     st.markdown("---")
@@ -296,10 +269,45 @@ Make sure the points are farmer-friendly, clear, and practical.
     }
 
     try:
-        raw_recommendation = chain1.invoke(prompt_inputs)
-        final_recommendation = chain2.invoke({"recommendation": raw_recommendation})
-        recommendation_translated = translate_text(final_recommendation, TARGET_LANG)
+        recommendation = chain.invoke(prompt_inputs)
+        recommendation_translated = translate_text(recommendation, TARGET_LANG)
         st.markdown(recommendation_translated)
+        # ---------------- PDF Download ----------------
+        from io import BytesIO
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+
+        # Create PDF in memory
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        # Title
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(50, height - 50, "🌱 Expert Recommendation Report")
+
+        # Add recommendation text (wrap lines)
+        c.setFont("Helvetica", 11)
+        y = height - 80
+        for line in recommendation_translated.split("\n"):
+            if y < 50:  # new page if space ends
+                c.showPage()
+                c.setFont("Helvetica", 11)
+                y = height - 50
+            c.drawString(50, y, line.strip())
+            y -= 20
+
+        c.save()
+        buffer.seek(0)
+
+        # Streamlit download button
+        st.download_button(
+            label="📥 Download Recommendation as PDF",
+            data=buffer,
+            file_name="recommendation_report.pdf",
+            mime="application/pdf"
+        )
+
     except Exception as e:
         st.error(translate_text("LLM recommendation failed.", TARGET_LANG))
         st.exception(e)
